@@ -1,0 +1,8 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+t/LWP-Simple-Post.t
+lib/LWP/Simple/Post.pm
+eg/jargon_file.pl
+META.yml                                 Module meta-data (added by MakeMaker)
