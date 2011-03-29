@@ -1,20 +1,13 @@
 package LWP::Simple::Post;
 
-	use strict;
+use strict;
+use warnings;
 
-	use vars qw($VERSION @EXPORT_OK @ISA);
+use parent "Exporter";
+our @EXPORT_OK = qw( post post_xml );
 
-	use constant DEBUG => 0;
-
-	require Exporter;
-	@ISA = qw(Exporter);
-
-	@EXPORT_OK = qw( post post_xml );
-
-	use LWP::UserAgent;
-	use HTTP::Request;
-
-	$VERSION = '0.04';
+use LWP::UserAgent;
+use HTTP::Request;
 
 =head1 NAME
 
@@ -31,6 +24,10 @@ Really simple wrapper to HTTP POST requests
  my $response = post('http://production/receiver', 'some text');
 
 =head1 OVERVIEW
+
+B<DON'T USE THIS MODULE! There are very few situations in which
+this module would be a win over using LWP::UserAgent directly.
+It was a bad idea I implemented a long time ago.>
 
 This module is intended to do for HTTP POST requests what
 LWP::Simple did for GET requests. If you want to do anything
@@ -49,25 +46,32 @@ what we got back. Returns C<undef> on failure.
 
 =cut
 
-	sub post {
+# I have added all sorts of hooks here in case you need to do
+# anything complicated, BUT, if you do, you shouldn't be using
+# this module...
 
-		my ( $url, $data ) = @_;
+sub post {
+    my ( $url, $data, $params ) = @_;
 
-		my $ua = _init_ua(); 
+    # Make the top secret params argument safe to use easily
+    $params = {} unless $params and ref $params;
 
-		my $r = HTTP::Request->new( POST => $url );
-		$r->content( $data );
+    # Prepare the request itself
+    my $request = HTTP::Request->new( POST => $url );
+    $request->content($data);
+    $request->header( 'Content-type' => 'text/xml' ) if $params->{'as_xml'};
+    return $request if $params->{'return_request'};
 
-		print $r->as_string if DEBUG;
+    # Execute the request
+    my $ua = $params->{'ua'} || LWP::UserAgent->new();
+    my $response = $ua->request($request);
+    return $response if $params->{'return_response'};
 
-		my $response = $ua->request( $r );
-
-		if ( DEBUG ) { return $response->content };
-		
-		return $response->content if $response->is_success;
-		return undef;
-
-	}
+    # Give the result to the user
+    my $content;
+    $content = $response->content if $response->is_success;
+    return $content;
+}
 
 =head2 post_xml
 
@@ -79,37 +83,10 @@ does, only the content-type header is set to C<text/html>.
 
 =cut
 
-  sub post_xml {
-
-    my ( $url, $data ) = @_;
-
-    my $ua = _init_ua(); 
-
-    my $r = HTTP::Request->new( POST => $url );
-    $r->content( $data );
-		$r->header('Content-type' => 'text/xml');
-
-    print $r->as_string if DEBUG;
-
-    my $response = $ua->request( $r );
-
-    if ( DEBUG ) { return $response->content };
-
-    return $response->content if $response->is_success;
-    return undef;
-
-  }
-
-	sub _init_ua {
-
-		my $ua = new LWP::UserAgent;  # we create a global UserAgent object
-		my $ver = $LWP::VERSION = $LWP::VERSION;  # avoid warning
-		$ua->agent("LWP::Simple/$LWP::VERSION");
-		$ua->env_proxy;
-
-		return $ua;
-
-	}
+sub post_xml {
+	my ( $url, $data ) = @_;
+	return post( $url, $data, { as_xml => 1 });
+}
 
 =head1 AUTHOR
 
@@ -117,7 +94,7 @@ Peter Sergeant - C<pete@clueball.com>
 
 =head1 COPYRIGHT
 
-Copyright 2005 Pete Sergeant.
+Copyright 2011 Pete Sergeant.
 
 This program is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
 
